@@ -1,0 +1,73 @@
+{
+	"info": {
+		"name": "person-data-manager-f",
+		"_postman_id": "fcbe8022-badf-b6e4-8dbb-943533fe7c61",
+		"description": "",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "/health",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {},
+				"url": {
+					"raw": "localhost:8080/health",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"health"
+					]
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "/health/db",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {},
+				"url": {
+					"raw": "http://localhost:8080/health/db",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"health",
+						"db"
+					]
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "elasticsearch/_cluster/health",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {},
+				"url": {
+					"raw": "localhost:9200/_cluster/health",
+					"host": [
+						"localhost"
+					],
+					"port": "9200",
+					"path": [
+						"_cluster",
+						"health"
+					]
+				},
+				"description": "Direct request to Elasticsearch on localhost:9200\n"
+			},
+			"response": []
+		}
+	]
+}
