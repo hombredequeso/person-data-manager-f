@@ -1,0 +1,5 @@
+source https://nuget.org/api/v2
+
+nuget NEST 5.5.0
+nuget Newtonsoft.Json
+nuget Suave
