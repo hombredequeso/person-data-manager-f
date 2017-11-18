@@ -4,13 +4,27 @@
   "description": "Api test for the person api",
   "main": "index.js",
   "scripts": {
-    "test": "./node_modules/.bin/jest"
+    "test": "./node_modules/.bin/jest",
+    "lint": "tslint -c tslint.json 'src/**/*.{ts,tsx}'"
   },
   "author": "Mark Cheeseman",
   "license": "ISC",
   "dependencies": {
     "frisby": "^2.0.8",
     "jest": "^21.2.1",
+    "ts-jest": "^21.2.3",
+    "typescript": "^2.6.1",
     "uuid": "^3.1.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js"
+    ],
+    "transform": {
+      "\\.(ts|tsx)$": "<rootDir>/node_modules/ts-jest/preprocessor.js"
+    },
+    "testRegex": "/__tests__/.*\\.(ts|tsx|js)$"
   }
 }

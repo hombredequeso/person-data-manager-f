@@ -1,8 +1,17 @@
 const frisby = require('frisby');
 
+interface HealthResponse
+{
+    version: string;
+}
+
 test('GET /health returns 200', function(done) {
+
+  let expectedHealthResponse = {version:'testing'};
+
   frisby.get('http://localhost:8080/health')
     .expect('status', 200)
+    .expect('json', expectedHealthResponse)
     .done(done);
 });
 

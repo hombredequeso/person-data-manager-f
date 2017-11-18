@@ -53,6 +53,8 @@ npm test
 * [Suave] (https://suave.io/) - web server, in F#
 * [Paket] (https://fsprojects.github.io/Paket/) - package dependency management
 * [Docker] (https://www.docker.com/) - for containerized infrastructure
+* [Jest](http://facebook.github.io/jest/) - javascript testing framework
+* [Frisby](https://www.frisbyjs.com/) - api testing library
 
 ## License
 
