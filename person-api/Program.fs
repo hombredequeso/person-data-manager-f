@@ -47,7 +47,7 @@ let toResponseBody (c: IClusterHealthResponse) : DbHealth =
 let getApiEsHealth : ElasticClient -> Async<DbHealth> = 
         getEsHealth >> Hdq.Async.map toResponseBody
 
-let getDbHealth2 (ec: ElasticClient) (c: HttpContext) : Async<HttpContext option> =
+let getDbHealth (ec: ElasticClient) (c: HttpContext) : Async<HttpContext option> =
     async {
         let! z = getApiEsHealth(ec)
         let m = JSON OK z
@@ -58,10 +58,8 @@ let getDbHealth2 (ec: ElasticClient) (c: HttpContext) : Async<HttpContext option
 let main argv = 
     let app = choose [   
                 GET >=> path "/health" >=> JSON Successful.OK {Version = "testing"}
-                GET >=> path "/health/db" >=> getDbHealth2(elasticSearchClient)
+                GET >=> path "/health/db" >=> getDbHealth(elasticSearchClient)
     ]
 
     startWebServer defaultConfig app
     0 // return an integer exit code
-
-

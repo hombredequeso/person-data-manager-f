@@ -40,7 +40,12 @@ If all is going well, it should be possible to test the api with Postman with th
 
 ## Running the tests
 
-TODO
+Api tests can be run as follows:
+
+```
+cd test-api
+npm test
+```
 
 ## Built With
 
