@@ -62,7 +62,11 @@
   </Choose>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="HdqOption.fs" />
+    <Compile Include="Rop.fs" />
     <Compile Include="Async.fs" />
+    <Compile Include="ElasticSearchDb.fs" />
+    <Compile Include="PersonDal.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />

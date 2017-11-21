@@ -2,6 +2,8 @@
 
 module Async = 
 
+    open System.Threading.Tasks
+
     let map f xAsync = async {
         // get the contents of xAsync 
         let! x = xAsync 
@@ -34,3 +36,6 @@ module Async =
         // as f will return an Async
         return! f x
         }
+
+    let toAsync (t: Task<'a>) : Async<'a> = 
+        Async.AwaitTask(t)
