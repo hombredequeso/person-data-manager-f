@@ -6,17 +6,13 @@ module Rop =
     /// The Success case has a success value, plus a list of messages
     /// The Failure case has just a list of messages
     type RopResult<'TSuccess, 'TMessage> =
-        | Success of 'TSuccess * 'TMessage list
+        | Success of 'TSuccess
         | Failure of 'TMessage list
 
     /// create a Success with no messages
     let succeed x =
-        Success (x,[])
+        Success x
 
-
-    /// create a Success with a message
-    let succeedWithMsg x msg =
-        Success (x,[msg])
 
     /// create a Failure with a message
     let fail msg =
@@ -25,7 +21,7 @@ module Rop =
     /// A function that applies either fSuccess or fFailure 
     /// depending on the case.
     let either fSuccess fFailure = function
-        | Success (x,msgs) -> fSuccess (x,msgs) 
+        | Success x -> fSuccess x
         | Failure errors -> fFailure errors 
 
     // is the same as...
@@ -36,13 +32,13 @@ module Rop =
 
     let map f r =
         match r with
-        | Success(x, msgs) -> Success(f(x), msgs)
-        | Failure e -> Failure e
+        | Success x -> f(x) |> Success 
+        | Failure e -> e |> Failure
 
     /// merge messages with a result
     let mergeMessages msgs result =
-        let fSuccess (x,msgs2) = 
-            Success (x, msgs @ msgs2) 
+        let fSuccess x = 
+            Success x
         let fFailure errs = 
             Failure (errs @ msgs) 
         either fSuccess fFailure result
@@ -52,8 +48,8 @@ module Rop =
     /// merge any existing messages with the new result
     /// MC: often just called bind: http://fsharpforfunandprofit.com/posts/recipe-part2/
     let bind f result =
-        let fSuccess (x,msgs) = 
-            f x |> mergeMessages msgs
+        let fSuccess x = 
+            f x 
         let fFailure errs = 
             Failure errs 
         either fSuccess fFailure result
@@ -63,11 +59,11 @@ module Rop =
     /// apply the function to the value only if both are Success
     let apply f result =
         match f,result with
-        | Success (f,msgs1), Success (x,msgs2) -> 
-            (f x, msgs1@msgs2) |> Success 
-        | Failure errs, Success (_,msgs) 
-        | Success (_,msgs), Failure errs -> 
-            errs @ msgs |> Failure
+        | Success f, Success x -> 
+            f x |> Success 
+        | Failure errs, Success _ 
+        | Success _, Failure errs -> 
+            errs |> Failure
         | Failure errs1, Failure errs2 -> 
             errs1 @ errs2 |> Failure 
 
@@ -114,23 +110,23 @@ module Rop =
     /// given an RopResult, call a unit function on the success branch
     /// and pass thru the result
     let successTee f result = 
-        let fSuccess (x,msgs) = 
-            f (x,msgs)
-            Success (x,msgs) 
+        let fSuccess x = 
+            f x
+            Success x 
         let fFailure errs = Failure errs 
         either fSuccess fFailure result
 
     let successTee' f result = 
-        let fSuccess (x,msgs) = 
+        let fSuccess x = 
             f x
-            Success (x,msgs) 
+            Success x 
         let fFailure errs = Failure errs 
         either fSuccess fFailure result
 
     /// given an RopResult, call a unit function on the failure branch
     /// and pass thru the result
     let failureTee f result = 
-        let fSuccess (x,msgs) = Success (x,msgs) 
+        let fSuccess x = Success x
         let fFailure errs = 
             f errs
             Failure errs 
@@ -139,9 +135,7 @@ module Rop =
     /// given an RopResult, map the messages to a different error type
     let mapMessagesR f result = 
         match result with 
-        | Success (x,msgs) -> 
-            let msgs' = List.map f msgs
-            Success (x, msgs')
+        | Success x -> Success x
         | Failure errors -> 
             let errors' = List.map f errors 
             Failure errors' 
@@ -151,7 +145,7 @@ module Rop =
     /// applying a function to the errors in the failure case
     let valueOrDefault f result = 
         match result with 
-        | Success (x,_) -> x
+        | Success x -> x
         | Failure errors -> f errors
 
     /// lift an option to a RopResult.
@@ -182,15 +176,15 @@ module Rop =
     /// Restrict usage to tests and mutually agreed areas of functionality (e.g. DAL only)
     let deRail x =
         match x with
-            | Success(e, _) -> e
+            | Success e -> e
             | _ -> failwith "Failure ROP value: only Success allowed"
 
-    // Not needed, it already exists.
-    // let optionToRopResult failMessage o =
-    //     match o with
-    //         | Some x -> succeed x
-    //         | None -> fail failMessage
 
+    let tryCatch f x =
+        try
+            f x |> succeed
+        with
+        | ex -> fail ex.Message
 
     type RopBuilder() =
         member this.Bind(x, f) = 

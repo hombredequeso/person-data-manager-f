@@ -62,6 +62,7 @@
   </Choose>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="TryParser.fs" />
     <Compile Include="HdqOption.fs" />
     <Compile Include="Rop.fs" />
     <Compile Include="Async.fs" />

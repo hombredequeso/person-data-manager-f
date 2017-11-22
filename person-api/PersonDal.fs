@@ -4,6 +4,7 @@ open System
 open ElasticSearchDb
 open Newtonsoft.Json.Linq
 open Elasticsearch.Net
+open Hdq.Rop
 
 let toBytes (jObject: JObject): byte[] = 
     jObject.ToString() |> System.Text.Encoding.ASCII.GetBytes
@@ -21,6 +22,25 @@ let personTypeName = "person"
 type DalResult =
     | Ok
     | Failure of string
+
+let getPerson (id: Guid) : Async<RopResult<JObject, string>> =
+    async {
+        let taskResult = elasticSearchClient.LowLevel.GetAsync<byte[]>("person", "person", id.ToString())
+        let! result = Hdq.Async.toAsync taskResult
+        let responseCode = HdqOption.NullableToOption result.HttpStatusCode
+        return match result.Success with
+                | true ->
+                    let serializedBody = System.Text.Encoding.Default.GetString(result.Body);
+                    let result = tryCatch JObject.Parse serializedBody
+                    either
+                        (fun x -> succeed x)
+                        (fun e -> fail "serializationFailure")
+                        result
+                | false -> 
+                    let errorMessage = Option.fold (fun s i -> sprintf "Server response: %d" i) "No Response From db server" responseCode
+                    fail errorMessage
+    }
+
 
 let indexPerson (person: JObject) (refresh: bool): Async<DalResult> =
 
