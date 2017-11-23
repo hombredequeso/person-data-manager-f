@@ -1,7 +1,5 @@
 ﻿module ElasticSearchDb
 
-// ========================================================================
-// Db access:
 open Nest
 open Hdq.Async
 

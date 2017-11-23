@@ -69,6 +69,7 @@
     <Compile Include="Async.fs" />
     <Compile Include="ElasticSearchDb.fs" />
     <Compile Include="PersonDal.fs" />
+    <Compile Include="ApiDomain.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />

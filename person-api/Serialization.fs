@@ -1,6 +1,5 @@
 ﻿module Serialization
 
-open System
 open Suave
 open Suave.Operators
 
@@ -19,10 +18,12 @@ let JSON (responseCode: string -> WebPart) entity : WebPart =
     >=> Writers.setMimeType "application/json; charset=utf-8"
 
 let (.=) key (value : obj) = new JProperty(key, value)
+
 let jobj jProperties =
     let jObject = new JObject()
     jProperties |> List.iter jObject.Add
     jObject
+
 let jArray jObjects =
     let jArray = new JArray()
     jObjects |> List.iter jArray.Add

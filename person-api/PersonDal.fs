@@ -1,7 +1,6 @@
 ﻿module PersonDal
 
 open System
-open ElasticSearchDb
 open Newtonsoft.Json.Linq
 open Elasticsearch.Net
 open Hdq.Rop
@@ -15,7 +14,6 @@ let toRefresh (refresh: bool) : Refresh =
 let toFunc fSharpFunc : Func<IndexRequestParameters,IndexRequestParameters> =
     new Func<IndexRequestParameters,IndexRequestParameters>(fSharpFunc)
 
-
 let personIndexName = "person"
 let personTypeName = "person"
 
@@ -23,9 +21,9 @@ type DalResult =
     | Ok
     | Failure of string
 
-let getPerson (id: Guid) : Async<RopResult<JObject, string>> =
+let getPerson (elasticSearchClient: IElasticLowLevelClient) (id: Guid) : Async<RopResult<JObject, string>> =
     async {
-        let taskResult = elasticSearchClient.LowLevel.GetAsync<byte[]>("person", "person", id.ToString())
+        let taskResult = elasticSearchClient.GetAsync<byte[]>("person", "person", id.ToString())
         let! result = Hdq.Async.toAsync taskResult
         let responseCode = HdqOption.NullableToOption result.HttpStatusCode
         return match result.Success with
@@ -42,7 +40,7 @@ let getPerson (id: Guid) : Async<RopResult<JObject, string>> =
     }
 
 
-let indexPerson (person: JObject) (refresh: bool): Async<DalResult> =
+let indexPerson (elasticSearchClient: IElasticLowLevelClient) (person: JObject) (refresh: bool): Async<DalResult> =
 
     let getProperty (o: JObject) (propertyName: string) : JProperty Option =
         let p = o.Property(propertyName)
@@ -52,7 +50,7 @@ let indexPerson (person: JObject) (refresh: bool): Async<DalResult> =
                         s.Refresh (toRefresh refresh)
     let id: string = getProperty person "id" |> Option.fold (fun s t -> (string)t.Value) ""
     async {
-        let taskResult = elasticSearchClient.LowLevel.IndexAsync<byte[]>(
+        let taskResult = elasticSearchClient.IndexAsync<byte[]>(
                             personIndexName, 
                             personTypeName, 
                             Guid.NewGuid().ToString(), 
