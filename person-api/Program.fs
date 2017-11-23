@@ -4,31 +4,10 @@ open Suave.Filters
 open Suave.Operators
 open Suave.Successful
 
+open Serialization
+
 open Newtonsoft.Json
-open Newtonsoft.Json.Serialization
 open Newtonsoft.Json.Linq
-
-// ========================================================================
-// Utils:
-
-let JSON (responseCode: string -> WebPart) entity : WebPart =
-    let settings = new JsonSerializerSettings()
-    settings.ContractResolver <-
-        new CamelCasePropertyNamesContractResolver()
-    JsonConvert.SerializeObject(entity, settings)
-    |> responseCode 
-    >=> Writers.setMimeType "application/json; charset=utf-8"
-
-let (.=) key (value : obj) = new JProperty(key, value)
-let jobj jProperties =
-    let jObject = new JObject()
-    jProperties |> List.iter jObject.Add
-    jObject
-let jArray jObjects =
-    let jArray = new JArray()
-    jObjects |> List.iter jArray.Add
-    jArray
-    
 
 // ========================================================================
 // Web Api
@@ -44,16 +23,26 @@ type PersonPostBody = {
     name: string
 }
 
-type PersonGetResponse = {
-    id: Guid
-    name: string
-}
-
 let toEsEntity (person: PersonPostBody) : JObject =
     jobj    [
         "name" .= person.name
     ]
 
+type PersonGetResponse = {
+    id: Guid
+    name: string
+}
+
+let toPersonGetResponse (getPersonResult: JObject): PersonGetResponse =
+    {
+        name = getPersonResult.["_source"].["name"].Value<String>()
+        id = Guid.Parse(getPersonResult.["_id"].Value<string>())
+    }
+
+type ErrorResponse = {
+    error: string
+    details: string
+}
 
 
 open ElasticSearchDb
@@ -74,56 +63,41 @@ let getDbHealth (ec: ElasticClient) (c: HttpContext) : Async<HttpContext option>
 
 open Hdq.Rop
 
+let onFailure (errors: string list) (c: HttpContext) : Async<HttpContext option> = 
+    let response = {
+        error = "Server Error"
+        details = String.Join(". ", errors)
+    }
+    (JSON ServerErrors.INTERNAL_ERROR response)(c)
 
-let innerPost (person: JObject) =
+let indexPerson (person: JObject) (c: HttpContext) : Async<HttpContext option> =
     async {
         let! dbResult = PersonDal.indexPerson person true
         let result = (OK "")
-        return result
+        return! result(c)
     }
 
-let onFailure errors : Async<WebPart> =
-    async {
-       return (ServerErrors.INTERNAL_ERROR "General catch all: all is not well...")
-    }
-
-let deserialize<'a> byteArray = byteArray
-                                |> System.Text.Encoding.UTF8.GetString 
-                                |> tryCatch JsonConvert.DeserializeObject<'a>
-
-let postPerson (request: HttpRequest) (c: HttpContext) : Async<HttpContext option> =
-    async {
-        let! esEntity = request.rawForm 
-                        |> deserialize<PersonPostBody>
-                        |> Hdq.Rop.map toEsEntity
-                        |> Hdq.Rop.either innerPost onFailure
-        return! esEntity(c)
-    }
-
-open TryParser
-open PersonDal
-open System
-
+let postPerson (request: HttpRequest): WebPart = 
+    request.rawForm 
+    |> deserialize<PersonPostBody>
+    |> Hdq.Rop.map toEsEntity
+    |> Hdq.Rop.either indexPerson onFailure
+           
 let passThroughWebPart (c: HttpContext) : Async<HttpContext Option> =
     async {
         return None
     }
 
-let toPersonGetResponse (getPersonResult: JObject): PersonGetResponse =
-    {
-        name = getPersonResult.["_source"].["name"].Value<String>()
-        id = Guid.Parse(getPersonResult.["_id"].Value<string>())
-    }
-
 let getPerson (guidId: Guid) (c: HttpContext): Async<HttpContext option> = 
+    let successResponse e = e |> toPersonGetResponse |> JSON OK
+
     async {
             let! getPersonResult = PersonDal.getPerson guidId
-            match getPersonResult with
-            | Hdq.Rop.Failure s -> 
-                return! ((ServerErrors.INTERNAL_ERROR "General catch all: all is not well...")(c))
-            | Success e ->
-                return! (e |> toPersonGetResponse |> JSON OK)(c)
+            let x = Hdq.Rop.either successResponse onFailure getPersonResult
+            return! x(c)
     }
+
+open TryParser
 
 [<EntryPoint>]
 let main argv = 
