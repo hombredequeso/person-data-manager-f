@@ -3,6 +3,7 @@
 open System
 open Serialization
 open Newtonsoft.Json.Linq
+open Hdq.Rop
 // ========================================================================
 // Web Api
 type WebServiceHealthResponse = {
@@ -13,31 +14,10 @@ type DbHealth = {
     Status: string
 }
 
-type PersonPostBody = {
-    name: string
-}
-
-let toEsEntity (person: PersonPostBody) : JObject =
-    jobj    [
-        "name" .= person.name
-    ]
-
-type PersonGetResponse = {
-    id: Guid
-    name: string
-}
-
-let toPersonGetResponse (getPersonResult: JObject): PersonGetResponse =
-    {
-        name = getPersonResult.["_source"].["name"].Value<String>()
-        id = Guid.Parse(getPersonResult.["_id"].Value<string>())
-    }
-
 type ErrorResponse = {
     error: string
-    details: string
+    details: string list
 }
-
 
 open ElasticSearchDb
 open Nest

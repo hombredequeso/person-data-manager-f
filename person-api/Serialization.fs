@@ -32,3 +32,7 @@ let jArray jObjects =
 let deserialize<'a> byteArray = byteArray
                                 |> System.Text.Encoding.UTF8.GetString 
                                 |> tryCatch JsonConvert.DeserializeObject<'a>
+
+let toJObject byteArray = byteArray
+                                |> System.Text.Encoding.UTF8.GetString 
+                                |> tryCatch JObject.Parse
