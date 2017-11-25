@@ -8,6 +8,7 @@ open Newtonsoft.Json.Serialization
 open Newtonsoft.Json.Linq
 
 open Hdq.Rop
+open HdqOption
 
 let JSON (responseCode: string -> WebPart) entity : WebPart =
     let settings = new JsonSerializerSettings()
@@ -36,3 +37,7 @@ let deserialize<'a> byteArray = byteArray
 let toJObject byteArray = byteArray
                                 |> System.Text.Encoding.UTF8.GetString 
                                 |> tryCatch JObject.Parse
+
+let getValue (propertyName: string) (obj: JObject) : JToken option =
+    let prop = obj.GetValue propertyName
+    toOption2 prop

@@ -23,3 +23,8 @@ let NullableToOption (n : System.Nullable<_>) =
    if n.HasValue 
    then Some n.Value 
    else None
+
+let toOption2 value = 
+    match box value with
+    | null -> None
+    | _ -> Some value

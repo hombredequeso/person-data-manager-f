@@ -19,7 +19,7 @@ type PostPersonError =
 let indexPerson (person: PersonDal.Person) (c: HttpContext) : Async<HttpContext option> =
     async {
         let! dbResult = PersonDal.indexPerson elasticSearchClient.LowLevel person true
-        let result = (JSON OK person)
+        let result = (JSON CREATED  person)
         return! result(c)
     }
 
@@ -40,7 +40,7 @@ let onPostFailure (errors: PostPersonError list) (c: HttpContext) : Async<HttpCo
     (JSON ServerErrors.INTERNAL_ERROR response)(c)
 
 let postPerson (request: HttpRequest): WebPart = 
-    let convertToJson = toJObject >> mapMessagesR (fun e -> PostPersonError.BodyIsInvalidJson e)
+    let convertToJson = Serialization.toJObject >> mapMessagesR (fun e -> PostPersonError.BodyIsInvalidJson e)
     let toPerson = PersonDal.toPerson >> mapMessagesR (fun e -> PostPersonError.InvalidPerson e)
 
     request.rawForm 

@@ -21,6 +21,9 @@ let validateExists (propertyName: string) (obj: JObject) =
     | true, x -> None
     | false, _ -> PropertyDoesNotExist propertyName |> Some
 
+
+
+
 let propertyIsValidGuid  (propertyName: string) (obj: JObject) = 
     match obj.TryGetValue propertyName with
     | true, x ->
@@ -65,7 +68,18 @@ type DalResult =
     | Ok
     | Failure of string
 
+let toJObject (o: JToken) =
+    match o with
+    | :? JObject -> o :?> 'a |> Some
+    | _ -> None
+
+    // todo : sort out _source errors here.
 let getPerson (elasticSearchClient: IElasticLowLevelClient) (id: Guid) : Async<RopResult<JObject, string>> =
+
+    let getSource = Serialization.getValue "_source" >>  failIfNone "Cannot find source Property"
+    let toJObject2 = toJObject >> failIfNone "Is not a JObject"
+    let getSource o = getSource o >>= toJObject2
+
     async {
         let taskResult = elasticSearchClient.GetAsync<byte[]>("person", "person", id.ToString())
         let! result = Hdq.Async.toAsync taskResult
@@ -74,7 +88,8 @@ let getPerson (elasticSearchClient: IElasticLowLevelClient) (id: Guid) : Async<R
                 | true ->
                     let serializedBody = System.Text.Encoding.Default.GetString(result.Body);
                     let result = tryCatch JObject.Parse serializedBody
-                    either succeed Hdq.Rop.Failure result
+                    let result2 = Hdq.Rop.bind (fun (r: JObject) -> getSource r) result
+                    either succeed Hdq.Rop.Failure result2
                 | false -> 
                     let errorMessage = Option.fold (fun s i -> sprintf "Server response: %d" i) "No Response From db server" responseCode
                     fail errorMessage
