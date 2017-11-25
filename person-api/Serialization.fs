@@ -30,14 +30,21 @@ let jArray jObjects =
     jObjects |> List.iter jArray.Add
     jArray
 
+let getProperty (propertyName: string) (obj: JObject) : JToken option =
+    let prop = obj.GetValue propertyName
+    valueToOption prop
+
 let deserialize<'a> byteArray = byteArray
                                 |> System.Text.Encoding.UTF8.GetString 
                                 |> tryCatch JsonConvert.DeserializeObject<'a>
 
-let toJObject byteArray = byteArray
-                                |> System.Text.Encoding.UTF8.GetString 
-                                |> tryCatch JObject.Parse
+let jObjFromBytes (byteArray: byte[]) : RopResult<JObject, string> = 
+    byteArray
+    |> System.Text.Encoding.UTF8.GetString 
+    |> tryCatch JObject.Parse
 
-let getValue (propertyName: string) (obj: JObject) : JToken option =
-    let prop = obj.GetValue propertyName
-    toOption2 prop
+let asJObject (o: JToken) =
+    match o with
+    | :? JObject -> o :?> JObject |> Some
+    | _ -> None
+

@@ -19,7 +19,15 @@ type PostPersonError =
 let indexPerson (person: PersonDal.Person) (c: HttpContext) : Async<HttpContext option> =
     async {
         let! dbResult = PersonDal.indexPerson elasticSearchClient.LowLevel person true
-        let result = (JSON CREATED  person)
+        let result = Hdq.Rop.either 
+                        (fun _ -> JSON CREATED  person) 
+                        (fun e -> 
+                            let response = {
+                                error = "Server Error"
+                                details = e
+                            }
+                            JSON ServerErrors.INTERNAL_ERROR response) 
+                        dbResult
         return! result(c)
     }
 
@@ -40,18 +48,23 @@ let onPostFailure (errors: PostPersonError list) (c: HttpContext) : Async<HttpCo
     (JSON ServerErrors.INTERNAL_ERROR response)(c)
 
 let postPerson (request: HttpRequest): WebPart = 
-    let convertToJson = Serialization.toJObject >> mapMessagesR (fun e -> PostPersonError.BodyIsInvalidJson e)
-    let toPerson = PersonDal.toPerson >> mapMessagesR (fun e -> PostPersonError.InvalidPerson e)
+    let jObj = jObjFromBytes >> mapMessagesR PostPersonError.BodyIsInvalidJson
+    let toPerson = PersonDal.toPerson >> mapMessagesR PostPersonError.InvalidPerson
 
     request.rawForm 
-    |> convertToJson
-    |> Hdq.Rop.bind toPerson
+    |> jObj
+    >>= toPerson
     |> Hdq.Rop.either indexPerson onPostFailure
            
-let onGetFailure (errors: string list) (c: HttpContext) : Async<HttpContext option> = 
+let getResponseErrorMessage = function
+    | DbResultHasNoSourceProperty -> "DbResultHasNoSourceProperty"
+    | DbResultCannotBeDeserialized s -> sprintf "DbResultCannotBeDeserialized: %s" s
+    | DbServerError s ->  sprintf "DbServerError: %s" s
+
+let onGetFailure (errors: GetPersonError list) (c: HttpContext) : Async<HttpContext option> = 
     let response = {
         error = "Server Error"
-        details = errors
+        details = errors |> List.map getResponseErrorMessage
     }
     (JSON ServerErrors.INTERNAL_ERROR response)(c)
 

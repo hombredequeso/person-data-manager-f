@@ -21,10 +21,7 @@ let validateExists (propertyName: string) (obj: JObject) =
     | true, x -> None
     | false, _ -> PropertyDoesNotExist propertyName |> Some
 
-
-
-
-let propertyIsValidGuid  (propertyName: string) (obj: JObject) = 
+let validateIsGuid (propertyName: string) (obj: JObject) = 
     match obj.TryGetValue propertyName with
     | true, x ->
                 match x.Value<string>() |> Guid.TryParse with
@@ -34,7 +31,7 @@ let propertyIsValidGuid  (propertyName: string) (obj: JObject) =
     | false, _ -> None  // validateExists should take care of this
 
 let toPerson (obj : JObject ) : RopResult<Person, ToPersonError> =
-    let validators = [validateExists "id"; validateExists "name"; propertyIsValidGuid "id"]
+    let validators = [validateExists "id"; validateExists "name"; validateIsGuid "id"]
     let validationResult = validators |> List.map (fun v -> v obj)
     let r2 = List.fold 
                     (fun (s: ToPersonError list) (t: ToPersonError option) ->
@@ -52,68 +49,76 @@ let toPerson (obj : JObject ) : RopResult<Person, ToPersonError> =
             } |> succeed
     | _ -> Failure r2
 
-let toBytes (jObject: JObject): byte[] = 
-    jObject.ToString() |> System.Text.Encoding.ASCII.GetBytes
-
 let toRefresh (refresh: bool) : Refresh =
     if refresh then Refresh.True else Refresh.False
-
-let toFunc fSharpFunc : Func<IndexRequestParameters,IndexRequestParameters> =
-    new Func<IndexRequestParameters,IndexRequestParameters>(fSharpFunc)
 
 let personIndexName = "person"
 let personTypeName = "person"
 
-type DalResult =
-    | Ok
-    | Failure of string
+type GetPersonError =
+    | DbResultHasNoSourceProperty
+    | DbResultCannotBeDeserialized of string
+    | DbServerError of string
 
-let toJObject (o: JToken) =
-    match o with
-    | :? JObject -> o :?> 'a |> Some
-    | _ -> None
+let getPerson (elasticSearchClient: IElasticLowLevelClient) (id: Guid) 
+        : Async<RopResult<JObject, GetPersonError>> =
 
-    // todo : sort out _source errors here.
-let getPerson (elasticSearchClient: IElasticLowLevelClient) (id: Guid) : Async<RopResult<JObject, string>> =
+    let getSourceObject =
+        Serialization.getProperty "_source" 
+        >> Option.bind Serialization.asJObject 
+        >> failIfNone DbResultHasNoSourceProperty
 
-    let getSource = Serialization.getValue "_source" >>  failIfNone "Cannot find source Property"
-    let toJObject2 = toJObject >> failIfNone "Is not a JObject"
-    let getSource o = getSource o >>= toJObject2
+    let bytesToJObject =
+        System.Text.Encoding.Default.GetString
+        >> tryCatch JObject.Parse
+        >> mapMessagesR DbResultCannotBeDeserialized
 
     async {
         let taskResult = elasticSearchClient.GetAsync<byte[]>("person", "person", id.ToString())
         let! result = Hdq.Async.toAsync taskResult
-        let responseCode = HdqOption.NullableToOption result.HttpStatusCode
+        let responseCode = HdqOption.nullableToOption result.HttpStatusCode
         return match result.Success with
                 | true ->
-                    let serializedBody = System.Text.Encoding.Default.GetString(result.Body);
-                    let result = tryCatch JObject.Parse serializedBody
-                    let result2 = Hdq.Rop.bind (fun (r: JObject) -> getSource r) result
-                    either succeed Hdq.Rop.Failure result2
+                    result.Body |> bytesToJObject >>= getSourceObject
                 | false -> 
                     let errorMessage = Option.fold (fun s i -> sprintf "Server response: %d" i) "No Response From db server" responseCode
-                    fail errorMessage
+                    DbServerError errorMessage |> fail
     }
 
-let indexPerson (elasticSearchClient: IElasticLowLevelClient) (person: Person) (refresh: bool): Async<DalResult> =
+let indexEntity<'a> 
+        (elasticSearchClient: IElasticLowLevelClient) 
+        indexName 
+        indexType 
+        (getId: 'a -> string)
+        (entity: 'a) 
+        (refresh: bool)
+        : Async<RopResult<unit, string>> =
 
-    let selector = fun (s: IndexRequestParameters) -> 
-                        s.Refresh (toRefresh refresh)
     async {
-        let serializedPerson = JsonConvert.SerializeObject person
+        let selector = fun (s: IndexRequestParameters) -> 
+                            s.Refresh (toRefresh refresh)
+        let serializedPerson = JsonConvert.SerializeObject entity
         let taskResult = elasticSearchClient.IndexAsync<byte[]>(
-                            personIndexName, 
-                            personTypeName, 
-                            person.id.ToString(),
+                            indexName, 
+                            indexType, 
+                            getId entity,
                             new PostData<Object>(serializedPerson), 
                             fun (s: IndexRequestParameters) -> (s.Refresh (toRefresh refresh)))
         let! result = Hdq.Async.toAsync taskResult
-        let responseCode = HdqOption.NullableToOption result.HttpStatusCode
+        let responseCode = HdqOption.nullableToOption result.HttpStatusCode
         return match result.Success with
-                | true -> DalResult.Ok
+                | true -> () |> succeed
                 | false -> 
                     let errorMessage = Option.fold (fun s i -> sprintf "Server response: %d" i) "No Response From db server" responseCode
-                    DalResult.Failure errorMessage
+                    errorMessage |> fail
     }
 
-    
+let indexPerson (elasticSearchClient: IElasticLowLevelClient) (person: Person) (refresh: bool)
+        : Async<RopResult<unit, string>> =
+    indexEntity 
+        elasticSearchClient 
+        personIndexName 
+        personTypeName 
+        (fun p -> p.id.ToString()) 
+        person 
+        refresh

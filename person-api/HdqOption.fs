@@ -18,13 +18,12 @@ let addSomeToList (s: 'a list) (e: 'a option) : 'a list =
     | None -> s
     | Some x -> x::s
 
-
-let NullableToOption (n : System.Nullable<_>) = 
+let nullableToOption (n : System.Nullable<_>) = 
    if n.HasValue 
    then Some n.Value 
    else None
 
-let toOption2 value = 
+let valueToOption value = 
     match box value with
     | null -> None
     | _ -> Some value
