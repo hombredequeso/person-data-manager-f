@@ -1,29 +1,31 @@
-﻿module HdqOption
+﻿namespace Hdq
 
-let getOrElse def o =
-    match o with
-    | Some x -> x
-    | None -> def
+module Option = 
 
-let apply fOpt xOpt = 
-    match fOpt,xOpt with
-    | Some f, Some x -> Some (f x)
-    | _ -> None
+    let getOrElse def o =
+        match o with
+        | Some x -> x
+        | None -> def
 
-let (<*>) = apply
-let (<!>) = Option.map
+    let apply fOpt xOpt = 
+        match fOpt,xOpt with
+        | Some f, Some x -> Some (f x)
+        | _ -> None
 
-let addSomeToList (s: 'a list) (e: 'a option) : 'a list = 
-    match e with
-    | None -> s
-    | Some x -> x::s
+    let (<*>) = apply
+    let (<!>) = Option.map
 
-let nullableToOption (n : System.Nullable<_>) = 
-   if n.HasValue 
-   then Some n.Value 
-   else None
+    let addSomeToList (s: 'a list) (e: 'a option) : 'a list = 
+        match e with
+        | None -> s
+        | Some x -> x::s
 
-let valueToOption value = 
-    match box value with
-    | null -> None
-    | _ -> Some value
+    let nullableToOption (n : System.Nullable<_>) = 
+       if n.HasValue 
+       then Some n.Value 
+       else None
+
+    let valueToOption value = 
+        match box value with
+        | null -> None
+        | _ -> Some value

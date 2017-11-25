@@ -67,8 +67,10 @@
     <Compile Include="HdqOption.fs" />
     <Compile Include="Serialization.fs" />
     <Compile Include="Async.fs" />
-    <Compile Include="ElasticSearchDb.fs" />
+    <Compile Include="ElasticsearchApi.fs" />
     <Compile Include="PersonDal.fs" />
+    <Compile Include="ElasticSearchDb.fs" />
+    <Compile Include="SuaveSerializer.fs" />
     <Compile Include="ApiDomain.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />

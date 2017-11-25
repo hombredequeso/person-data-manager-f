@@ -5,12 +5,14 @@ open Suave.Operators
 open Suave.Successful
 
 open Hdq.Rop
-open TryParser
+open Hdq.TryParser
 open Serialization
 open ElasticSearchDb
 open ApiDomain
 
 open PersonDal
+open SuaveSerializer
+open Hdq.ElasticsearchApi
 
 type PostPersonError =
     | BodyIsInvalidJson of string
@@ -56,12 +58,13 @@ let postPerson (request: HttpRequest): WebPart =
     >>= toPerson
     |> Hdq.Rop.either indexPerson onPostFailure
            
+
 let getResponseErrorMessage = function
     | DbResultHasNoSourceProperty -> "DbResultHasNoSourceProperty"
     | DbResultCannotBeDeserialized s -> sprintf "DbResultCannotBeDeserialized: %s" s
     | DbServerError s ->  sprintf "DbServerError: %s" s
 
-let onGetFailure (errors: GetPersonError list) (c: HttpContext) : Async<HttpContext option> = 
+let onGetFailure (errors: GetEntityError list) (c: HttpContext) : Async<HttpContext option> = 
     let response = {
         error = "Server Error"
         details = errors |> List.map getResponseErrorMessage

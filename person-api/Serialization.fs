@@ -1,22 +1,11 @@
 ﻿module Serialization
 
-open Suave
-open Suave.Operators
-
 open Newtonsoft.Json
-open Newtonsoft.Json.Serialization
 open Newtonsoft.Json.Linq
 
 open Hdq.Rop
-open HdqOption
+open Hdq.Option
 
-let JSON (responseCode: string -> WebPart) entity : WebPart =
-    let settings = new JsonSerializerSettings()
-    settings.ContractResolver <-
-        new CamelCasePropertyNamesContractResolver()
-    JsonConvert.SerializeObject(entity, settings)
-    |> responseCode 
-    >=> Writers.setMimeType "application/json; charset=utf-8"
 
 let (.=) key (value : obj) = new JProperty(key, value)
 

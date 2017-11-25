@@ -2,9 +2,9 @@
 
 open System
 open Newtonsoft.Json.Linq
-open Newtonsoft.Json
 open Elasticsearch.Net
 open Hdq.Rop
+open Hdq.ElasticsearchApi
 
 type Person = {
     id: Guid
@@ -49,69 +49,13 @@ let toPerson (obj : JObject ) : RopResult<Person, ToPersonError> =
             } |> succeed
     | _ -> Failure r2
 
-let toRefresh (refresh: bool) : Refresh =
-    if refresh then Refresh.True else Refresh.False
 
 let personIndexName = "person"
 let personTypeName = "person"
 
-type GetPersonError =
-    | DbResultHasNoSourceProperty
-    | DbResultCannotBeDeserialized of string
-    | DbServerError of string
-
 let getPerson (elasticSearchClient: IElasticLowLevelClient) (id: Guid) 
-        : Async<RopResult<JObject, GetPersonError>> =
-
-    let getSourceObject =
-        Serialization.getProperty "_source" 
-        >> Option.bind Serialization.asJObject 
-        >> failIfNone DbResultHasNoSourceProperty
-
-    let bytesToJObject =
-        System.Text.Encoding.Default.GetString
-        >> tryCatch JObject.Parse
-        >> mapMessagesR DbResultCannotBeDeserialized
-
-    async {
-        let taskResult = elasticSearchClient.GetAsync<byte[]>("person", "person", id.ToString())
-        let! result = Hdq.Async.toAsync taskResult
-        let responseCode = HdqOption.nullableToOption result.HttpStatusCode
-        return match result.Success with
-                | true ->
-                    result.Body |> bytesToJObject >>= getSourceObject
-                | false -> 
-                    let errorMessage = Option.fold (fun s i -> sprintf "Server response: %d" i) "No Response From db server" responseCode
-                    DbServerError errorMessage |> fail
-    }
-
-let indexEntity<'a> 
-        (elasticSearchClient: IElasticLowLevelClient) 
-        indexName 
-        indexType 
-        (getId: 'a -> string)
-        (entity: 'a) 
-        (refresh: bool)
-        : Async<RopResult<unit, string>> =
-
-    async {
-        let selector = fun (s: IndexRequestParameters) -> 
-                            s.Refresh (toRefresh refresh)
-        let serializedPerson = JsonConvert.SerializeObject entity
-        let taskResult = elasticSearchClient.IndexAsync<byte[]>(
-                            indexName, 
-                            indexType, 
-                            getId entity,
-                            new PostData<Object>(serializedPerson), 
-                            fun (s: IndexRequestParameters) -> (s.Refresh (toRefresh refresh)))
-        let! result = Hdq.Async.toAsync taskResult
-        let responseCode = HdqOption.nullableToOption result.HttpStatusCode
-        return match result.Success with
-                | true -> () |> succeed
-                | false -> 
-                    let errorMessage = Option.fold (fun s i -> sprintf "Server response: %d" i) "No Response From db server" responseCode
-                    errorMessage |> fail
-    }
+        : Async<RopResult<JObject, GetEntityError>> =
+    getEntity elasticSearchClient personIndexName personTypeName id
 
 let indexPerson (elasticSearchClient: IElasticLowLevelClient) (person: Person) (refresh: bool)
         : Async<RopResult<unit, string>> =

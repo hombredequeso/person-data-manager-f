@@ -1,11 +1,6 @@
 ﻿module ApiDomain
 
-open System
-open Serialization
-open Newtonsoft.Json.Linq
-open Hdq.Rop
-// ========================================================================
-// Web Api
+
 type WebServiceHealthResponse = {
     Version: string
     }
@@ -21,6 +16,7 @@ type ErrorResponse = {
 
 open ElasticSearchDb
 open Nest
+open SuaveSerializer
 open Suave
 open Suave.Successful
 
